@@ -23,9 +23,11 @@ var mouseConstraint;
 function setup() {
   canvas = createCanvas(800, 600);
 
-  // Mouse positions don't align unless pixelDensity = 1
-  // pixelDensity(1);
-
+  // Mouse positions don't align
+  // But it does work if I force pixel density of 1
+  pixelDensity(1);
+  // Can I instead tell mouse to divide its xy by 2?
+  
   // create an engine
   engine = Engine.create();
   world = engine.world;
@@ -89,7 +91,4 @@ function draw() {
     line(0, 0, r, 0);
     pop();
   }
-
-
-
 }
