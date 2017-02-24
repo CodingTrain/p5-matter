@@ -5,9 +5,11 @@
 var Engine = Matter.Engine;
 var Render = Matter.Render;
 var World = Matter.World;
+var Body = Matter.Body;
 var Bodies = Matter.Bodies;
 var Composite = Matter.Composite;
 var Composites = Matter.Composites;
+var Constraint = Matter.Constraint;
 
 var Mouse = Matter.Mouse;
 var MouseConstraint = Matter.MouseConstraint;
@@ -17,16 +19,13 @@ var world;
 var bodies;
 
 var canvas;
+var constraint;
 
 var mouseConstraint;
 
 function setup() {
   canvas = createCanvas(800, 600);
 
-  // Mouse positions don't align
-  // But it does work if I force pixel density of 1
-  // pixelDensity(1);
-  // Can I instead tell mouse to divide its xy by 2?
 
   // create an engine
   engine = Engine.create();
@@ -43,33 +42,54 @@ function setup() {
   mouseConstraint.mouse.pixelRatio = pixelDensity();
   World.add(world, mouseConstraint);
 
-  var params = {
-    isStatic: true
-  }
-  var ground = Bodies.rectangle(width / 2, height, width, 1, params);
-  var wall1 = Bodies.rectangle(0, height / 2, 1, height, params);
-  var wall2 = Bodies.rectangle(width, height / 2, 1, height, params);
-  var top = Bodies.rectangle(width / 2, 0, width, 1, params);
-  World.add(world, ground);
-  World.add(world, wall1);
-  World.add(world, wall2);
-  World.add(world, top);
 
-  function makeCircle(x, y) {
+  var group = Body.nextGroup(true);
+
+
+  // Make a single rectangle
+  function makeRect(x, y) {
     var params = {
-      restitution: 0.7,
-      friction: 0.2
+      collisionFilter: {
+        group: group
+      }
     }
-    return Bodies.circle(x, y, 32, params);
+    var body = Bodies.rectangle(x, y, 50, 20, params);
+    // adding properties that I can pick up later
+    body.w = 50;
+    body.h = 20;
+    return body;
   }
 
+  // Create a stack of rectangles
   // x, y, columns, rows, column gap, row gap
-  //var stack = Composites.stack(20, 50, 15, 10, 20, 20, makeCircle);
-  var stack = Composites.stack(20, height/2, 7, 3, 50, 50, makeCircle);
-  bodies = stack.bodies;
+  var ropeA = Composites.stack(width / 2, 100, 1, 9, 0, 25, makeRect);
+  bodies = ropeA.bodies;
+
+  // Connect them as a chain
+  var params = {
+    stiffness: 0.8,
+    length: 2
+  }
+  Composites.chain(ropeA, 0.5, 0, -0.5, 0, params);
+
+  var params = {
+    bodyB: ropeA.bodies[0],
+    pointB: {
+      x: -25,
+      y: 0
+    },
+    pointA: {
+      x: width / 2,
+      y: 100
+    },
+    stiffness: 0.5
+  };
+
+  constraint = Constraint.create(params);
+  Composite.add(ropeA, constraint);
 
   // add all of the bodies to the world
-  World.add(world, stack);
+  World.add(world, ropeA);
 
   // run the engine
   Engine.run(engine);
@@ -87,17 +107,27 @@ function draw() {
     var angle = circle.angle;
     push();
     translate(pos.x, pos.y);
+    rectMode(CENTER);
     rotate(angle);
-    ellipse(0, 0, r * 2);
-    line(0, 0, r, 0);
+    rect(0, 0, 50, 20);
+    line(0, 0, 25, 0);
     pop();
   }
 
+  var a = constraint.pointA;
+  var b = constraint.pointB;
+  var pos = constraint.bodyB.position;
+  stroke(255);
+  fill(255);
+  line(a.x, a.y, pos.x + b.x, pos.y + b.y);
+  ellipse(a.x, a.y, 4, 4);
+  ellipse(pos.x + b.x, pos.y + b.y, 4, 4);
+
   var a = mouseConstraint.constraint.pointA;
+  var b = mouseConstraint.constraint.pointB;
   var bodyB = mouseConstraint.constraint.bodyB;
   if (bodyB) {
-    strokeWeight(2);
     stroke(255);
-    line(a.x, a.y, bodyB.position.x, bodyB.position.y);
+    line(a.x, a.y, b.x + bodyB.position.x, b.y + bodyB.position.y);
   }
 }
